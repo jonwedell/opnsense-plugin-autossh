@@ -59,17 +59,23 @@ sh tools/install.sh     # sh tools/uninstall.sh to reverse
 
 The plugin appears under **VPN → Autossh**.
 
-### Upgrading from 1.0.1
+### Upgrading from an earlier 1.0.x package
 
-1.0.1 shipped a syslog-ng snippet that duplicated the one OPNsense generates
-for the plugin, which makes syslog-ng reject its configuration. The upgrade
-removes it; restart syslog-ng afterwards so it loads a clean configuration
-(`tools/install.sh` does this itself):
+* 1.0.0 to 1.0.2 packages installed `autossh.py` and the rc script without
+  the execute bit, so Apply failed, Connection Status stayed empty and
+  tunnels did not start. Installing 1.0.3 or later replaces both with the
+  right mode; nothing else to do.
+* 1.0.0 and 1.0.1 also shipped a syslog-ng snippet that duplicated the one
+  OPNsense generates for the plugin, which makes syslog-ng reject its whole
+  configuration. pkg removes it on upgrade. To confirm afterwards:
 
-```sh
-configctl syslog restart
-syslog-ng --syntax-only && echo SYSLOG_OK
-```
+  ```sh
+  syslog-ng --syntax-only && echo SYSLOG_OK
+  ```
+
+Coming from the original Threat Patrols package needs neither: it shipped
+its scripts executable, and its syslog-ng snippet had the same name as the
+one OPNsense generates, so it is simply replaced.
 
 ### First Apply, when migrating from the original plugin
 
