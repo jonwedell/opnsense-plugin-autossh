@@ -58,12 +58,11 @@ class ServiceController extends ApiControllerBase
         }
 
         $result = $this->backendJson('autossh reconfigure');
-        if ($result['status'] !== 'success') {
-            return ['status' => 'failed', 'message' => $result['message']];
-        }
 
         return [
-            'status' => 'ok',
+            // the configuration may still have been written when individual
+            // tunnels failed to (re)start; the message says which
+            'status' => $result['status'] === 'success' ? 'ok' : 'failed',
             'message' => $result['message'],
             'actions' => $result['data']['actions'] ?? [],
             'skipped' => $result['data']['skipped'] ?? [],

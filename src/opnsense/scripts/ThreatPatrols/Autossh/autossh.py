@@ -477,26 +477,39 @@ def reconfigure():
     outcome = generate()
     data = outcome["data"]
     actions = []
+    failures = []
 
-    for uuid in data["removed"] + data["skipped"]:
+    def run(command, uuid, action):
+        returncode, output = rc_command(command, uuid)
+        if returncode == 0:
+            actions.append({"uuid": uuid, "action": action})
+            return
+        detail = output.strip().splitlines()[-1] if output.strip() else f"exit status {returncode}"
+        log_warn(f"tunnel {uuid}: {command} failed: {detail}")
+        actions.append({"uuid": uuid, "action": "failed", "command": command, "output": output.strip()})
+        failures.append(f"{uuid} ({command}): {detail}")
+
+    # a tunnel can be both removed and skipped; stop it once
+    for uuid in dict.fromkeys(data["removed"] + data["skipped"]):
         if is_running(uuid):
-            rc_command("stop_tunnel", uuid)
-            actions.append({"uuid": uuid, "action": "stopped"})
+            run("stop_tunnel", uuid, "stopped")
 
     for uuid in data["enabled"]:
         if uuid in data["changed"]:
             if is_running(uuid):
-                rc_command("restart_tunnel", uuid)
-                actions.append({"uuid": uuid, "action": "restarted"})
+                run("restart_tunnel", uuid, "restarted")
             else:
-                rc_command("start_tunnel", uuid)
-                actions.append({"uuid": uuid, "action": "started"})
+                run("start_tunnel", uuid, "started")
         elif not is_running(uuid):
-            rc_command("start_tunnel", uuid)
-            actions.append({"uuid": uuid, "action": "started"})
+            run("start_tunnel", uuid, "started")
 
     outcome["data"]["actions"] = actions
-    outcome["message"] = "{}; {} tunnel(s) adjusted".format(outcome["message"], len(actions))
+    adjusted = len(actions) - len(failures)
+    outcome["message"] = "{}; {} tunnel(s) adjusted".format(outcome["message"], adjusted)
+    if failures:
+        # the configuration was still written; report what did not come up
+        outcome["status"] = "failed"
+        outcome["message"] += "; {} failed: {}".format(len(failures), "; ".join(failures))
     return outcome
 
 
