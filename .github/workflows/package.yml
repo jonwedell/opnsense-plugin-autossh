@@ -58,6 +58,10 @@ jobs:
     name: build os-autossh (.pkg)
     needs: lint
     runs-on: ubuntu-latest
+    # Repositories created since 2023 give GITHUB_TOKEN read-only scope by
+    # default, which is enough to build but not to create a release.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -98,8 +102,12 @@ jobs:
           path: dist/*.pkg
           if-no-files-found: error
 
+      # Only a v* tag publishes a Release; a branch push leaves the package as
+      # a workflow artifact.
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.pkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true
