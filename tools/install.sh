@@ -16,7 +16,7 @@
 set -e
 
 PLUGIN_NAME="autossh"
-PLUGIN_VERSION="1.0.1"
+PLUGIN_VERSION="1.0.2"
 PLUGIN_MODEL="ThreatPatrols/Autossh"
 LOCALBASE="/usr/local"
 

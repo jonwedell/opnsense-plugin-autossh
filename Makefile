@@ -1,5 +1,5 @@
 PLUGIN_NAME=        autossh
-PLUGIN_VERSION=     1.0.1
+PLUGIN_VERSION=     1.0.2
 PLUGIN_COMMENT=     Create and automatically persist SSH based tunnels using autossh
 PLUGIN_MAINTAINER=  jon@jonwedell.com
 PLUGIN_WWW=         https://github.com/jonwedell/opnsense-plugin-autossh

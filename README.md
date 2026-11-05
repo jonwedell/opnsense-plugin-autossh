@@ -42,7 +42,7 @@ grep -c ThreatPatrols /conf/config.xml
 ### From a built package
 
 ```sh
-pkg add os-autossh-1.0.1.pkg
+pkg add os-autossh-1.0.2.pkg
 ```
 
 ### Staged, without pkg
@@ -58,6 +58,18 @@ sh tools/install.sh     # sh tools/uninstall.sh to reverse
 ```
 
 The plugin appears under **VPN → Autossh**.
+
+### Upgrading from 1.0.1
+
+1.0.1 shipped a syslog-ng snippet that duplicated the one OPNsense generates
+for the plugin, which makes syslog-ng reject its configuration. The upgrade
+removes it; restart syslog-ng afterwards so it loads a clean configuration
+(`tools/install.sh` does this itself):
+
+```sh
+configctl syslog restart
+syslog-ng --syntax-only && echo SYSLOG_OK
+```
 
 ### First Apply, when migrating from the original plugin
 
