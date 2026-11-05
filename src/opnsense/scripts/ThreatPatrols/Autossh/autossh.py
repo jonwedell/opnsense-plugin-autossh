@@ -469,6 +469,10 @@ def rc_command(command, uuid=None, timeout=120):
     except subprocess.TimeoutExpired:
         log_warn(f"rc command '{command} {uuid or ''}' timed out after {timeout}s")
         return 1, f"timed out after {timeout}s"
+    except OSError as error:
+        # e.g. the rc script is missing or not executable
+        log_warn(f"cannot run {RC_SCRIPT}: {error}")
+        return 1, f"cannot run {RC_SCRIPT}: {error.strerror or error}"
 
     return result.returncode, (result.stdout or "") + (result.stderr or "")
 
