@@ -41,8 +41,6 @@ import tempfile
 import time
 from xml.etree import ElementTree
 
-__version__ = "1.0.0"
-
 SYSTEM_CONFIG = "/conf/config.xml"
 DATA_MODEL = "/usr/local/opnsense/mvc/app/models/ThreatPatrols/Autossh/Autossh.xml"
 SSH_CONFIG = "/usr/local/etc/autossh/autossh.conf"
@@ -50,6 +48,9 @@ STATE_DIR = "/var/db/autossh"
 RUN_DIR = "/var/run"
 LOG_FILE = "/var/log/autossh/latest.log"
 RC_SCRIPT = "/usr/local/etc/rc.d/opnsense-autossh"
+# written by the package (and by tools/install.sh), so the version is only
+# declared once, in the Makefile
+VERSION_FILE = "/usr/local/opnsense/version/autossh"
 
 # Algorithm fields. These normally hold algorithm names directly, because
 # BaseModel keys an option list by the `value` attribute when one is present
@@ -716,6 +717,14 @@ def hostkeys(uuid):
     }
 
 
+def plugin_version():
+    try:
+        with open(VERSION_FILE, "r", encoding="utf-8") as handle:
+            return json.load(handle).get("product_version", "unknown")
+    except (OSError, ValueError):
+        return "unknown"
+
+
 def autossh_version():
     try:
         result = subprocess.run(
@@ -729,7 +738,7 @@ def autossh_version():
     return {
         "status": "success",
         "message": "autossh version information",
-        "data": {"plugin": __version__, "autossh": binary},
+        "data": {"plugin": plugin_version(), "autossh": binary},
     }
 
 

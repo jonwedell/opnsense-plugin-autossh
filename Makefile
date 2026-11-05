@@ -11,7 +11,8 @@ PLUGIN_DEPENDS=     autossh
 # counts as yes: the package would declare ${PLUGIN_NAME} as its own conflict
 # and firmware/register.php would scrub it straight back out of the plugin
 # inventory, leaving it permanently "(misconfigured)". PLUGIN_PREFIX defaults
-# to os- and PLUGIN_SUFFIX to -devel, which is what we want.
+# to os-, and the -devel PLUGIN_SUFFIX is only applied on that devel branch,
+# so leaving both unset produces the package name we want: os-autossh.
 #
 
 .include "../../Mk/plugins.mk"

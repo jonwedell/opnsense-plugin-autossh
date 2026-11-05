@@ -166,6 +166,16 @@ def check_makefile(problems):
     """
     source = open(os.path.join(ROOT, "Makefile"), encoding="utf-8").read()
 
+    # tools/install.sh writes the version file a package would, so it has to
+    # agree with the Makefile
+    version = re.search(r"^PLUGIN_VERSION=\s*(\S+)", source, re.M)
+    staged = re.search(r'^PLUGIN_VERSION="([^"]+)"',
+                       open(os.path.join(ROOT, "tools/install.sh"), encoding="utf-8").read(), re.M)
+    if not version or not staged:
+        problems.append("cannot find PLUGIN_VERSION in the Makefile or tools/install.sh")
+    elif version.group(1) != staged.group(1):
+        problems.append(f"tools/install.sh PLUGIN_VERSION {staged.group(1)} != Makefile {version.group(1)}")
+
     for knob in ("PLUGIN_DEVEL", "PLUGIN_SUFFIX"):
         for line in source.splitlines():
             if line.startswith("#"):
