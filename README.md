@@ -12,17 +12,21 @@ earlier. Upgrading past that removes the package, which takes the web UI with
 it while leaving the generated files behind — tunnels keep running until the
 next reboot, with nothing left to restart them.
 
-> **Status: not yet tested on hardware.** Every integration point was checked
-> against the OPNsense 26.7.8 sources and the generator is covered by a static
-> validator, but no part of this has run on a live firewall. Treat the first
-> install as a test, and keep a console session open.
+> **Status: working.** Verified on OPNsense 26.7.8_2 (amd64) against a live
+> configuration carried over from the original plugin — tunnel and key grids,
+> editing, Apply, and the Connection Status page including per-tunnel
+> start/stop/restart.
 
 ## Compatibility with the original
 
 The model is mounted at the same place as the original, `//ThreatPatrols/Autossh`,
-and uses the same field names, option keys and model version (`0.3.0`). An
-existing `/conf/config.xml` is read as-is: tunnels and keys appear immediately,
-no migration or re-entry required.
+and every field name and option key is unchanged. An existing
+`/conf/config.xml` is read as-is: tunnels and keys appear immediately, with no
+re-entry required.
+
+The model version moves `0.3.0` → `1.0.0`, which runs one small migration
+(`M1_0_0`) to repair `rekey_limit`; see below. Take a config backup before the
+first install, as with any migration.
 
 Check what is there before installing:
 
@@ -32,7 +36,7 @@ grep -c ThreatPatrols /conf/config.xml
 
 ## Requirements
 
-* OPNsense 26.7 or later (built and verified against 26.7.8)
+* OPNsense 26.7 or later (developed and verified against 26.7.8)
 * `pkg install autossh` — pulls in `openssh-portable`, providing
   `/usr/local/bin/ssh`
 
@@ -57,6 +61,16 @@ sh tools/install.sh     # sh tools/uninstall.sh to reverse
 ```
 
 The plugin appears under **VPN → Autossh**.
+
+### First Apply, when migrating from the original plugin
+
+The first Apply restarts **every** tunnel: the installed `autossh.conf` was
+written by the original's template, so each rendered block differs and all
+tunnels count as changed. Subsequent applies only touch what actually changed.
+
+If you reach the web interface *through* one of those tunnels, that first Apply
+will cut the page out from under you mid-request. Do it from the LAN, or expect
+to reconnect.
 
 ## Build
 
@@ -116,6 +130,16 @@ OpenSSH 10 removed DSA entirely.
 **`Tunnel` / `TunnelDevice` implemented.** The original model had the fields but
 its template left them as `[todo]`, so layer 2/3 tunnels silently did nothing.
 
+**A repaired `rekey_limit`.** Five of the six option-key fields were normalized
+by the original's `M0_3_0` migration using `array_search` (value → key); the
+sixth indexed that same key → value map *by* the stored value, which never
+matches, leaving `rekey_limit` holding a raw value such as `default none`
+instead of `rekey_limit_01`. A raw value is not a selectable option, so the
+dialog could not preselect it and saving would silently overwrite it. `M1_0_0`
+maps it back to its key, conservatively: anything already valid or
+unrecognizable is left alone. The config generator also accepts either
+spelling, so generation is correct regardless.
+
 **Validation.** The model rejects a tunnel that forwards nothing and has no
 tunnel mode, a tunnel mode without a device, and a key record with no material.
 A key still referenced by a tunnel cannot be deleted. Key type and material are
@@ -126,6 +150,12 @@ pinned after creation.
 tunnels were not stopped cleanly on shutdown. `stop` now also reaps tunnels
 that have been removed from the configuration.
 
+`daemon(8)` is additionally given its own stdio. It stays resident to supervise
+each tunnel, and otherwise inherits the caller's descriptors — when those are a
+pipe, as they are under configd, the resident supervisor holds the write end
+open indefinitely, the reader never sees EOF, and the caller hangs rather than
+returning. Child output still reaches syslog through `-S`.
+
 ## Layout
 
 ```
@@ -134,6 +164,7 @@ src/etc/inc/plugins.inc.d/autossh.inc         service + syslog + HA registration
 src/etc/rc.d/opnsense-autossh                 per-tunnel rc script
 src/etc/syslog-ng.conf.d/autossh.conf         log target for /var/log/autossh
 src/opnsense/mvc/app/models/…/Autossh.{xml,php}   data model and validation
+src/opnsense/mvc/app/models/…/Migrations/          model version migrations
 src/opnsense/mvc/app/controllers/…/Api/        Tunnels, Keys, Connections, Service
 src/opnsense/mvc/app/controllers/…/forms/      dialog + grid definitions
 src/opnsense/mvc/app/views/…/*.volt            Tunnels/Keys page, Connection Status
