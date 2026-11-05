@@ -12,6 +12,7 @@ namespace ThreatPatrols\Autossh\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use ThreatPatrols\Autossh\Autossh;
 
 class ConnectionsController extends ApiControllerBase
 {
@@ -50,7 +51,13 @@ class ConnectionsController extends ApiControllerBase
             return ['status' => 'failed', 'message' => gettext('No tunnel specified.')];
         }
 
+        // only hand configd the id of a tunnel that exists; it ends up as an
+        // argument to autossh, where anything starting with "-" is an option
         $uuid = (string)$this->request->getPost('uuid');
+        if (!Autossh::isTunnelUuid($uuid)) {
+            return ['status' => 'failed', 'message' => gettext('Unknown tunnel.')];
+        }
+
         $output = trim((new Backend())->configdpRun("autossh {$action}_tunnel", [$uuid]));
 
         // the rc script prefixes failures with "Fail:"

@@ -12,6 +12,7 @@ namespace ThreatPatrols\Autossh\Api;
 
 use OPNsense\Base\ApiMutableModelControllerBase;
 use OPNsense\Core\Backend;
+use ThreatPatrols\Autossh\Autossh;
 
 class TunnelsController extends ApiMutableModelControllerBase
 {
@@ -59,6 +60,11 @@ class TunnelsController extends ApiMutableModelControllerBase
             'title' => gettext('SSH host keys recorded for this tunnel'),
             'message' => gettext('Unable to read host keys, review the configd log.'),
         ];
+
+        if (!Autossh::isTunnelUuid($uuid)) {
+            $info['message'] = gettext('Unknown tunnel.');
+            return $info;
+        }
 
         $response = json_decode(
             trim((new Backend())->configdpRun('autossh hostkeys', [$uuid])),

@@ -88,10 +88,28 @@ __require_tunnel()
     fi
 }
 
+# Tunnel ids are config.xml UUIDs. Refuse anything else: the id is handed to
+# autossh as the ssh destination, where a leading "-" would be an option, and
+# it is used to build pidfile paths.
+__valid_tunnel()
+{
+    case "${1}" in
+    *[!0-9A-Fa-f-]*|"")
+        echo "Fail: invalid tunnel id '${1}'" >&2
+        return 1
+        ;;
+    -*)
+        echo "Fail: invalid tunnel id '${1}'" >&2
+        return 1
+        ;;
+    esac
+}
+
 autossh_start_one()
 {
     _t="${1:-${_arg_tunnel}}"
     [ -n "${_t}" ] || __require_tunnel
+    __valid_tunnel "${_t}" || return 1
     _pf=$(__pidfile "${_t}")
 
     if __is_running "${_t}"; then
@@ -133,6 +151,7 @@ autossh_stop_one()
 {
     _t="${1:-${_arg_tunnel}}"
     [ -n "${_t}" ] || __require_tunnel
+    __valid_tunnel "${_t}" || return 1
     _pf=$(__pidfile "${_t}")
 
     if __is_running "${_t}"; then
@@ -149,6 +168,7 @@ autossh_restart_one()
 {
     _t="${1:-${_arg_tunnel}}"
     [ -n "${_t}" ] || __require_tunnel
+    __valid_tunnel "${_t}" || return 1
 
     autossh_stop_one "${_t}"
     # the remote end needs a moment to release any RemoteForward listeners,
@@ -161,6 +181,7 @@ autossh_status_one()
 {
     _t="${1:-${_arg_tunnel}}"
     [ -n "${_t}" ] || __require_tunnel
+    __valid_tunnel "${_t}" || return 1
 
     if __is_running "${_t}"; then
         echo "autossh ${_t}: running as pid $(cat "$(__pidfile "${_t}")")"

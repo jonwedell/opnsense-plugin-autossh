@@ -35,6 +35,18 @@ use OPNsense\Base\Messages\Message;
 class Autossh extends BaseModel
 {
     /**
+     * True when $uuid is well formed and names a configured tunnel. Use this
+     * before passing a client supplied id on to configd.
+     */
+    public static function isTunnelUuid($uuid)
+    {
+        if (!is_string($uuid) || !preg_match('/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i', $uuid)) {
+            return false;
+        }
+        return (new self())->getNodeByReference('tunnels.tunnel.' . $uuid) !== null;
+    }
+
+    /**
      * A tunnel that forwards nothing connects and then sits idle, which is
      * almost never what was intended -- require at least one forward or an
      * explicit layer 2/3 tunnel.

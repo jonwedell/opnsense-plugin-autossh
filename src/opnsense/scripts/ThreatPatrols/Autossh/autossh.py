@@ -683,7 +683,12 @@ def keygen(key_type):
     }
 
 
+UUID_PATTERN = re.compile(r"^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$", re.I)
+
+
 def hostkeys(uuid):
+    if not UUID_PATTERN.match(uuid or ""):
+        raise AutosshError(f"invalid tunnel id '{uuid}'")
     path = os.path.join(STATE_DIR, f"{uuid}.known_hosts")
     if not os.path.isfile(path):
         return {
