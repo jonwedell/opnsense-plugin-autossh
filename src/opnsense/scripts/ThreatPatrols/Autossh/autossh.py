@@ -51,8 +51,12 @@ RUN_DIR = "/var/run"
 LOG_FILE = "/var/log/autossh/latest.log"
 RC_SCRIPT = "/usr/local/etc/rc.d/opnsense-autossh"
 
-# Model fields whose config.xml values are option *keys* that must be resolved
-# to algorithm names via the data model. See the note in Autossh.xml.
+# Algorithm fields. These normally hold algorithm names directly, because
+# BaseModel keys an option list by the `value` attribute when one is present
+# (see the note in Autossh.xml). The element-name placeholders are only ever
+# seen in configurations written by the original plugin's 0.3.0 migration,
+# which stored them by mistake; resolve_mapped() accepts either spelling so
+# such a configuration still renders correctly.
 MAPPED_FIELDS = (
     "ciphers",
     "host_key_algorithms",
@@ -159,12 +163,11 @@ def read_system_config(filename=None):
 
 
 def resolve_mapped(field, stored_value, mappings):
-    """Resolve a stored option-key list to a comma separated algorithm list.
+    """Resolve a stored algorithm list to a comma separated algorithm list.
 
-    Accepts the algorithm name itself as well as the option key: the 0.3.0
-    migration shipped with the original plugin normalized five of these six
-    fields but left rekey_limit holding its value, so both spellings exist in
-    the wild. M1_0_0 repairs that, and this stays tolerant regardless.
+    Accepts the algorithm name (what the model stores) as well as the
+    element-name placeholder, so that a configuration written by the original
+    plugin's 0.3.0 migration still renders the algorithms it intended.
     """
     table = mappings.get(field, {})
     known_values = set(table.values())

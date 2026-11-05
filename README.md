@@ -20,13 +20,10 @@ next reboot, with nothing left to restart them.
 ## Compatibility with the original
 
 The model is mounted at the same place as the original, `//ThreatPatrols/Autossh`,
-and every field name and option key is unchanged. An existing
+and every field name, option key and the model version (`0.3.0`) are unchanged.
+Only options were added, so no migration runs and an existing
 `/conf/config.xml` is read as-is: tunnels and keys appear immediately, with no
 re-entry required.
-
-The model version moves `0.3.0` → `1.0.0`, which runs one small migration
-(`M1_0_0`) to repair `rekey_limit`; see below. Take a config backup before the
-first install, as with any migration.
 
 Check what is there before installing:
 
@@ -130,15 +127,15 @@ OpenSSH 10 removed DSA entirely.
 **`Tunnel` / `TunnelDevice` implemented.** The original model had the fields but
 its template left them as `[todo]`, so layer 2/3 tunnels silently did nothing.
 
-**A repaired `rekey_limit`.** Five of the six option-key fields were normalized
-by the original's `M0_3_0` migration using `array_search` (value → key); the
-sixth indexed that same key → value map *by* the stored value, which never
-matches, leaving `rekey_limit` holding a raw value such as `default none`
-instead of `rekey_limit_01`. A raw value is not a selectable option, so the
-dialog could not preselect it and saving would silently overwrite it. `M1_0_0`
-maps it back to its key, conservatively: anything already valid or
-unrecognizable is left alone. The config generator also accepts either
-spelling, so generation is correct regardless.
+**Tolerance for configurations the original's migration mangled.** OPNsense
+keys an option list by the `value` attribute when one is present, so for the
+algorithm fields the stored value *is* the algorithm name — the `ciphers_01`
+style element names exist only because `chacha20-poly1305@openssh.com` is not
+a legal XML element name, and they never reach the model. The original's
+`M0_3_0` migration rewrote stored algorithm names into those placeholders,
+which the model cannot accept. The config generator resolves either spelling,
+so such a configuration still renders the algorithms it intended; the affected
+fields do need re-picking in the dialog before that tunnel will save.
 
 **Validation.** The model rejects a tunnel that forwards nothing and has no
 tunnel mode, a tunnel mode without a device, and a key record with no material.
@@ -164,7 +161,6 @@ src/etc/inc/plugins.inc.d/autossh.inc         service + syslog + HA registration
 src/etc/rc.d/opnsense-autossh                 per-tunnel rc script
 src/etc/syslog-ng.conf.d/autossh.conf         log target for /var/log/autossh
 src/opnsense/mvc/app/models/…/Autossh.{xml,php}   data model and validation
-src/opnsense/mvc/app/models/…/Migrations/          model version migrations
 src/opnsense/mvc/app/controllers/…/Api/        Tunnels, Keys, Connections, Service
 src/opnsense/mvc/app/controllers/…/forms/      dialog + grid definitions
 src/opnsense/mvc/app/views/…/*.volt            Tunnels/Keys page, Connection Status

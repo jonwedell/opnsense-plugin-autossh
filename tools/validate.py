@@ -32,14 +32,37 @@ FORMS = (
 )
 
 
+def option_keys(field):
+    """Return the option keys the model will actually accept for a field.
+
+    BaseModel::parseOptionData keys the option list by the `value` attribute
+    when one is present, falling back to the element name otherwise. So for
+    `<ciphers_01 value="aes128-ctr">` the accepted value is `aes128-ctr`; the
+    element name is only an XML-legal placeholder (option keys like
+    `chacha20-poly1305@openssh.com` are not valid element names) and never
+    reaches the model.
+    """
+    options = field.find("optionvalues")
+    if options is None:
+        return []
+
+    return [
+        option.get("value") if option.get("value") is not None else option.tag
+        for option in options
+    ]
+
+
 def check_option_defaults(groups, problems):
     for group, node in groups.items():
         for field in node:
             if field.get("type") != "OptionField":
                 continue
 
-            options = field.find("optionvalues")
-            keys = {option.tag for option in options} if options is not None else set()
+            keys = option_keys(field)
+
+            # a duplicate value attribute silently collapses two options into one
+            for key in {k for k in keys if keys.count(k) > 1}:
+                problems.append(f"{group}.{field.tag}: option key '{key}' is declared more than once")
 
             default = field.find("default")
             if default is None or not (default.text or "").strip():
@@ -47,7 +70,7 @@ def check_option_defaults(groups, problems):
 
             for value in [v.strip() for v in default.text.split(",") if v.strip()]:
                 if value not in keys:
-                    problems.append(f"{group}.{field.tag}: default '{value}' is not a declared option")
+                    problems.append(f"{group}.{field.tag}: default '{value}' is not an accepted option")
 
             multiple = field.find("multiple")
             if (multiple is None or multiple.text != "Y") and "," in default.text:
