@@ -30,9 +30,16 @@ class KeysController extends ApiMutableModelControllerBase
         return $this->searchBase('keys.key', ['name', 'type', 'key_fingerprint', 'description'], 'name');
     }
 
+    /**
+     * The edit dialog never shows the private key, and setKeyAction() pins
+     * the stored material regardless of what is posted back, so there is no
+     * reason to send it to the browser.
+     */
     public function getKeyAction($uuid = null)
     {
-        return $this->getBase('key', 'keys.key', $uuid);
+        $result = $this->getBase('key', 'keys.key', $uuid);
+        unset($result['key']['key_private']);
+        return $result;
     }
 
     /**
