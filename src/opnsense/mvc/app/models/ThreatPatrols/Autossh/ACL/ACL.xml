@@ -1,0 +1,12 @@
+<acl>
+    <page-autossh>
+        <name>VPN: Autossh</name>
+        <description>Allow access to the Autossh tunnel configuration and status pages</description>
+        <patterns>
+            <pattern>ui/autossh/*</pattern>
+            <pattern>api/autossh/*</pattern>
+            <pattern>ui/diagnostics/log/core/autossh</pattern>
+            <pattern>api/diagnostics/log/core/autossh/*</pattern>
+        </patterns>
+    </page-autossh>
+</acl>

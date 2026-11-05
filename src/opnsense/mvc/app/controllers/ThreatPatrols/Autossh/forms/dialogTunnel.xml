@@ -1,0 +1,310 @@
+<form>
+    <field>
+        <id>tunnel.enabled</id>
+        <label>Enabled</label>
+        <type>checkbox</type>
+        <help>Enable this tunnel. Disabled tunnels are stopped and left out of the generated ssh configuration.</help>
+        <grid_view>
+            <width>20</width>
+            <type>boolean</type>
+            <formatter>rowtoggle</formatter>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.description</id>
+        <label>Description</label>
+        <type>text</type>
+        <help>A name for this tunnel, shown in the grid and on the Connection Status page.</help>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Remote</label>
+    </field>
+    <field>
+        <id>tunnel.user</id>
+        <label>User</label>
+        <type>text</type>
+        <help>The user to authenticate as on the remote host.</help>
+    </field>
+    <field>
+        <id>tunnel.hostname</id>
+        <label>Hostname</label>
+        <type>text</type>
+        <help>Hostname or address of the remote ssh server.</help>
+    </field>
+    <field>
+        <id>tunnel.port</id>
+        <label>Port</label>
+        <type>text</type>
+        <help>Remote ssh port, leave empty for 22.</help>
+    </field>
+    <field>
+        <id>tunnel.ssh_key</id>
+        <label>SSH key</label>
+        <type>dropdown</type>
+        <style>selectpicker</style>
+        <help>The key used to authenticate. Install its public key on the remote host first; use the key icon in the Keys tab to copy it.</help>
+    </field>
+    <field>
+        <id>tunnel.bind_interface</id>
+        <label>Bind interface</label>
+        <type>dropdown</type>
+        <style>selectpicker</style>
+        <help>Interface the outbound connection is bound to. It must have a route to the remote host.</help>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Forwarding</label>
+    </field>
+    <field>
+        <id>tunnel.local_forward</id>
+        <label>Local forward</label>
+        <type>text</type>
+        <help>Forward a local port to the remote side, e.g. "127.0.0.1:8080 10.0.0.5:80". See LocalForward in ssh_config(5).</help>
+    </field>
+    <field>
+        <id>tunnel.remote_forward</id>
+        <label>Remote forward</label>
+        <type>text</type>
+        <help>Forward a remote port back to this side, e.g. "0.0.0.0:8443 127.0.0.1:443". Binding to anything other than loopback on the remote also requires GatewayPorts on the remote sshd. See RemoteForward in ssh_config(5).</help>
+    </field>
+    <field>
+        <id>tunnel.dynamic_forward</id>
+        <label>Dynamic forward</label>
+        <type>text</type>
+        <help>SOCKS proxy bind address, e.g. "127.0.0.1:1080". See DynamicForward in ssh_config(5).</help>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Layer 2/3 tunnel</label>
+        <advanced>true</advanced>
+    </field>
+    <field>
+        <id>tunnel.tunnel</id>
+        <label>Tunnel mode</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>Request a tun (layer 3) or tap (layer 2) device instead of, or in addition to, port forwarding. Requires PermitTunnel on the remote sshd.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.tunnel_device</id>
+        <label>Tunnel device</label>
+        <type>text</type>
+        <advanced>true</advanced>
+        <help>Local and remote device to request, e.g. "any:any", "0:0" or "1". Required when a tunnel mode is selected.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Connection behaviour</label>
+        <advanced>true</advanced>
+    </field>
+    <field>
+        <id>tunnel.address_family</id>
+        <label>Address family</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.connection_attempts</id>
+        <label>Connection attempts</label>
+        <type>text</type>
+        <advanced>true</advanced>
+        <help>Attempts per connection before giving up; autossh retries regardless.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.connect_timeout</id>
+        <label>Connect timeout</label>
+        <type>text</type>
+        <advanced>true</advanced>
+        <help>Seconds to wait for the TCP connection to establish.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.server_alive_interval</id>
+        <label>Server alive interval</label>
+        <type>text</type>
+        <advanced>true</advanced>
+        <help>Seconds between keepalive probes on an idle connection. 0 disables them.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.server_alive_count_max</id>
+        <label>Server alive count max</label>
+        <type>text</type>
+        <advanced>true</advanced>
+        <help>Unanswered keepalives before the connection is considered dead.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.tcp_keep_alive</id>
+        <label>TCP keep alive</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.compression</id>
+        <label>Compression</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.gateway_ports</id>
+        <label>Gateway ports</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>Allow hosts other than this firewall to use a local forward.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.rekey_limit</id>
+        <label>Rekey limit</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.log_level</id>
+        <label>Log level</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>Verbosity of the ssh client for this tunnel.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Host key verification</label>
+        <advanced>true</advanced>
+    </field>
+    <field>
+        <id>tunnel.strict_host_key_checking</id>
+        <label>Strict host key checking</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>"Accept New" trusts the host key seen on the first connection and refuses changes after that.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.check_host_ip</id>
+        <label>Check host IP</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>Also record the host address in the known hosts file. Leave disabled for remotes with changing addresses.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.update_host_keys</id>
+        <label>Update host keys</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.verify_host_key_dns</id>
+        <label>Verify host key via DNS</label>
+        <type>dropdown</type>
+        <advanced>true</advanced>
+        <help>Trust SSHFP records published in DNS.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+
+    <field>
+        <type>header</type>
+        <label>Algorithms</label>
+        <advanced>true</advanced>
+    </field>
+    <field>
+        <id>tunnel.kex_algorithms</id>
+        <label>Key exchange</label>
+        <type>select_multiple</type>
+        <style>tokenize</style>
+        <advanced>true</advanced>
+        <help>Offered in the order listed. Leave the defaults unless the remote is old enough to need otherwise.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.ciphers</id>
+        <label>Ciphers</label>
+        <type>select_multiple</type>
+        <style>tokenize</style>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.macs</id>
+        <label>MACs</label>
+        <type>select_multiple</type>
+        <style>tokenize</style>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.host_key_algorithms</id>
+        <label>Host key algorithms</label>
+        <type>select_multiple</type>
+        <style>tokenize</style>
+        <advanced>true</advanced>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+    <field>
+        <id>tunnel.pubkey_accepted_key_types</id>
+        <label>Public key algorithms</label>
+        <type>select_multiple</type>
+        <style>tokenize</style>
+        <advanced>true</advanced>
+        <help>Rendered as PubkeyAcceptedAlgorithms in the ssh configuration.</help>
+        <grid_view>
+            <visible>false</visible>
+        </grid_view>
+    </field>
+</form>

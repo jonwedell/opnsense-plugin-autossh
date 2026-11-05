@@ -1,0 +1,105 @@
+name: package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      opnsense_tag:
+        description: 'opnsense/plugins tag providing Mk/ (build framework)'
+        default: '26.7.8'
+        required: false
+      opnsense_abi:
+        description: 'Target OPNsense ABI recorded in the package'
+        default: '26.7'
+        required: false
+
+env:
+  # Tag of opnsense/plugins supplying Mk/plugins.mk. Keep aligned with the
+  # OPNsense release you are targeting.
+  OPNSENSE_TAG: ${{ github.event.inputs.opnsense_tag || '26.7.8' }}
+  # defaults.mk derives this from opnsense-version(8), which does not exist in a
+  # plain FreeBSD VM; it falls back to the tag's own default, but pin it
+  # explicitly so the recorded ABI never depends on that.
+  OPNSENSE_ABI: ${{ github.event.inputs.opnsense_abi || '26.7' }}
+
+jobs:
+  lint:
+    name: lint and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: PHP syntax
+        run: find . -name '*.php' -o -name '*.inc' | xargs -r -n1 php -l
+
+      - name: Shell syntax
+        run: |
+          for f in tools/*.sh src/etc/rc.d/opnsense-autossh; do sh -n "$f"; done
+
+      - name: Python syntax
+        run: python3 -m compileall -q src/opnsense/scripts tools
+
+      - name: XML well-formedness
+        run: |
+          find . -name '*.xml' -print0 | \
+            xargs -0 -n1 python3 -c 'import sys; from xml.etree import ElementTree; ElementTree.parse(sys.argv[1])'
+
+      - name: Model, form and generator consistency
+        run: python3 tools/validate.py
+
+  package:
+    name: build os-autossh (.pkg)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No FreeBSD host needed: Mk/plugins.mk is self-contained (it generates
+      # +MANIFEST/+DESC/plist itself and calls `pkg create` directly), so the
+      # only FreeBSD-specific requirements are make(1) and pkg(8).
+      - name: Build package in a FreeBSD 15.1 VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: '15.1'
+          usesh: true
+          copyback: true
+          envs: 'OPNSENSE_TAG OPNSENSE_ABI'
+          prepare: |
+            pkg install -y git
+          run: |
+            set -e
+            git clone --depth 1 --branch "${OPNSENSE_TAG}" \
+                https://github.com/opnsense/plugins.git /tmp/plugins
+            mkdir -p /tmp/plugins/net/autossh
+            # The plugin dir must live at <plugins>/<category>/<name> so that
+            # the Makefile's ../../Mk/plugins.mk include resolves.
+            tar -C "${GITHUB_WORKSPACE}" -cf - \
+                --exclude .git --exclude .github . | \
+                tar -C /tmp/plugins/net/autossh -xf -
+            cd /tmp/plugins/net/autossh
+            # PLUGIN_DEPENDS=autossh is installed here from the FreeBSD repo to
+            # record the dependency; pkg resolves it by origin on the firewall,
+            # where it comes from the OPNsense repo instead.
+            make package PLUGIN_ABIS="${OPNSENSE_ABI}"
+            mkdir -p "${GITHUB_WORKSPACE}/dist"
+            cp work/pkg/*.pkg "${GITHUB_WORKSPACE}/dist/"
+            ls -l "${GITHUB_WORKSPACE}/dist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: os-autossh-pkg
+          path: dist/*.pkg
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.pkg

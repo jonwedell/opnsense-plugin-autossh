@@ -1,0 +1,26 @@
+<form>
+    <field>
+        <id>key.name</id>
+        <label>Name</label>
+        <type>text</type>
+        <help>A name for this key, used to pick it when configuring a tunnel.</help>
+    </field>
+    <field>
+        <id>key.type</id>
+        <label>Type</label>
+        <type>dropdown</type>
+        <style>selectpicker</style>
+        <help>Key type. The key pair is generated on this firewall and cannot be changed afterwards; create a new key instead.</help>
+    </field>
+    <field>
+        <id>key.description</id>
+        <label>Description</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>key.key_fingerprint</id>
+        <label>Fingerprint</label>
+        <type>info</type>
+        <help>Generated when the key is created.</help>
+    </field>
+</form>

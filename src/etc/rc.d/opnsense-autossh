@@ -1,0 +1,208 @@
+#!/bin/sh
+#
+# Copyright (c) 2022 Threat Patrols Pty Ltd <contact@threatpatrols.com>
+# Copyright (c) 2026 Jon Wedell <jon@jonwedell.com>
+# All rights reserved.
+#
+# PROVIDE: autossh
+# REQUIRE: NETWORKING DAEMON LOGIN SERVERS
+# KEYWORD: shutdown
+#
+# Enable with the following /etc/rc.conf.d/autossh entry:
+#   autossh_enable="YES"
+#
+# Tunnels are identified by the Host labels in the generated ssh client
+# configuration, which are the config.xml UUIDs of each tunnel.
+
+. /etc/rc.subr
+
+name="autossh"
+rcvar="autossh_enable"
+desc="persistent autossh tunnels"
+
+load_rc_config $name
+
+: ${autossh_enable:="NO"}
+: ${autossh_configfile:="/usr/local/etc/autossh/autossh.conf"}
+: ${autossh_loglevel:="4"}
+: ${autossh_monitor_poll_interval:="60"}
+: ${autossh_monitor_port_min:="60000"}
+: ${autossh_monitor_port_max:="65000"}
+: ${autossh_logdir:="/var/log/autossh"}
+
+command="/usr/local/bin/autossh"
+pidfile="/dev/null"
+
+start_cmd="autossh_start_all"
+stop_cmd="autossh_stop_all"
+restart_cmd="autossh_restart_all"
+status_cmd="autossh_status_all"
+
+start_tunnel_cmd="autossh_start_one"
+stop_tunnel_cmd="autossh_stop_one"
+restart_tunnel_cmd="autossh_restart_one"
+status_tunnel_cmd="autossh_status_one"
+
+extra_commands="start_tunnel stop_tunnel restart_tunnel status_tunnel"
+
+# second positional argument, captured before rc.subr consumes the first
+_arg_tunnel="$2"
+
+__tunnels()
+{
+    [ -r "${autossh_configfile}" ] || return 0
+    awk '/^[Hh]ost[ \t]+/ { print $2 }' "${autossh_configfile}"
+}
+
+__pidfile()
+{
+    echo "/var/run/autossh.${1}.pid"
+}
+
+__is_running()
+{
+    _pf=$(__pidfile "${1}")
+    [ -s "${_pf}" ] && kill -0 "$(cat "${_pf}")" 2> /dev/null
+}
+
+__monitor_port()
+{
+    # autossh uses PORT and PORT+1, so only even ports are handed out
+    _lo=$((autossh_monitor_port_min / 2))
+    _hi=$(((autossh_monitor_port_max - 1) / 2))
+    echo $(($(jot -r 1 ${_lo} ${_hi}) * 2))
+}
+
+__logdir()
+{
+    if [ ! -d "${autossh_logdir}" ]; then
+        install -d -m 0700 -o root -g wheel "${autossh_logdir}"
+    fi
+}
+
+__require_tunnel()
+{
+    if [ -z "${_arg_tunnel}" ]; then
+        echo "Fail: no tunnel id supplied, expected: ${name} <command>_tunnel <uuid>" >&2
+        exit 1
+    fi
+}
+
+autossh_start_one()
+{
+    _t="${1:-${_arg_tunnel}}"
+    [ -n "${_t}" ] || __require_tunnel
+    _pf=$(__pidfile "${_t}")
+
+    if __is_running "${_t}"; then
+        echo "autossh ${_t}: already running as pid $(cat "${_pf}")"
+        return 0
+    fi
+
+    rm -f "${_pf}"
+    __logdir
+
+    echo "autossh ${_t}: starting"
+    #
+    # daemon(8) stays resident to supervise the tunnel, and it inherits our
+    # stdin/stdout/stderr. If those are a pipe -- which they are whenever this
+    # script is driven by configd or from a captured subprocess -- the resident
+    # supervisor holds the write end open forever, the reader never sees EOF,
+    # and the caller hangs instead of returning. Give daemon its own stdio;
+    # child output still reaches syslog via -S.
+    #
+    env AUTOSSH_GATETIME=0 \
+        AUTOSSH_DEBUG="${autossh_loglevel}" \
+        AUTOSSH_POLL="${autossh_monitor_poll_interval}" \
+        AUTOSSH_PORT="$(__monitor_port)" \
+        daemon -S -P "${_pf}" -r -t "autossh.${_t}" -T "autosshd" -u root \
+            "${command}" -N -y -F "${autossh_configfile}" "${_t}" \
+            < /dev/null > /dev/null 2>&1
+
+    # daemon(8) writes the pidfile before exec, give it a moment to settle so
+    # that an immediate status check reflects reality
+    sleep 1
+
+    if ! __is_running "${_t}"; then
+        echo "Fail: autossh ${_t} did not stay running, see ${autossh_logdir}/latest.log" >&2
+        return 1
+    fi
+}
+
+autossh_stop_one()
+{
+    _t="${1:-${_arg_tunnel}}"
+    [ -n "${_t}" ] || __require_tunnel
+    _pf=$(__pidfile "${_t}")
+
+    if __is_running "${_t}"; then
+        echo "autossh ${_t}: stopping pid $(cat "${_pf}")"
+        kill "$(cat "${_pf}")" 2> /dev/null
+    else
+        echo "autossh ${_t}: not running"
+    fi
+
+    rm -f "${_pf}" "/var/run/autossh.${_t}.info"
+}
+
+autossh_restart_one()
+{
+    _t="${1:-${_arg_tunnel}}"
+    [ -n "${_t}" ] || __require_tunnel
+
+    autossh_stop_one "${_t}"
+    # the remote end needs a moment to release any RemoteForward listeners,
+    # otherwise ExitOnForwardFailure aborts the new connection
+    sleep 2
+    autossh_start_one "${_t}"
+}
+
+autossh_status_one()
+{
+    _t="${1:-${_arg_tunnel}}"
+    [ -n "${_t}" ] || __require_tunnel
+
+    if __is_running "${_t}"; then
+        echo "autossh ${_t}: running as pid $(cat "$(__pidfile "${_t}")")"
+        return 0
+    fi
+
+    echo "autossh ${_t}: not running"
+    return 1
+}
+
+autossh_start_all()
+{
+    for _tunnel in $(__tunnels); do
+        autossh_start_one "${_tunnel}"
+    done
+}
+
+autossh_stop_all()
+{
+    # stop everything with a pidfile, not just what is still in the config, so
+    # that tunnels removed from the configuration are cleaned up too
+    for _pf in /var/run/autossh.*.pid; do
+        [ -e "${_pf}" ] || continue
+        _tunnel=${_pf#/var/run/autossh.}
+        autossh_stop_one "${_tunnel%.pid}"
+    done
+}
+
+autossh_restart_all()
+{
+    autossh_stop_all
+    sleep 2
+    autossh_start_all
+}
+
+autossh_status_all()
+{
+    _rc=0
+    for _tunnel in $(__tunnels); do
+        autossh_status_one "${_tunnel}" || _rc=1
+    done
+    return ${_rc}
+}
+
+run_rc_command "$1"

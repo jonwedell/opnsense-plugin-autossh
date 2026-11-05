@@ -1,0 +1,12 @@
+Create and automatically persist SSH based tunnels using autossh.
+
+Establishes local, remote and dynamic SSH port forwards (and layer 2/3
+tun/tap tunnels) that are monitored and automatically re-established when
+they fail.
+
+This is a modernized rewrite of the original Threat Patrols os-autossh
+plugin, which was last released for OPNsense 25.1. It reads the same
+configuration section (//ThreatPatrols/Autossh) so existing tunnel and key
+definitions are carried over as-is.
+
+WWW: https://github.com/jonwedell/opnsense-plugin-autossh
