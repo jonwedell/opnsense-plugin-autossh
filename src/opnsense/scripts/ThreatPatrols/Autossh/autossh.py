@@ -690,19 +690,24 @@ def hostkeys(uuid):
     if not UUID_PATTERN.match(uuid or ""):
         raise AutosshError(f"invalid tunnel id '{uuid}'")
     path = os.path.join(STATE_DIR, f"{uuid}.known_hosts")
-    if not os.path.isfile(path):
-        return {
-            "status": "failed",
-            "message": "No known hosts recorded yet; start the tunnel once to learn the host key.",
-            "data": [],
-        }
 
     entries = []
-    for line in open(path, "r", encoding="utf-8", errors="replace"):
-        parts = line.split()
-        if len(parts) >= 3:
-            # drop the hostname/alias field, keep algorithm + key (+ comment)
-            entries.append(" ".join(parts[1:]))
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                parts = line.split()
+                if len(parts) >= 3:
+                    # drop the hostname/alias field, keep algorithm + key (+ comment)
+                    entries.append(" ".join(parts[1:]))
+
+    # Apply creates the file empty, so a missing file and an empty one both
+    # mean the tunnel has not connected yet
+    if not entries:
+        return {
+            "status": "failed",
+            "message": "No host keys recorded yet; the tunnel learns them on its first successful connection.",
+            "data": [],
+        }
 
     return {
         "status": "success",
