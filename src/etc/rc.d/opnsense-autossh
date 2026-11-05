@@ -155,8 +155,22 @@ autossh_stop_one()
     _pf=$(__pidfile "${_t}")
 
     if __is_running "${_t}"; then
-        echo "autossh ${_t}: stopping pid $(cat "${_pf}")"
-        kill "$(cat "${_pf}")" 2> /dev/null
+        _pid=$(cat "${_pf}")
+        echo "autossh ${_t}: stopping pid ${_pid}"
+        kill "${_pid}" 2> /dev/null
+
+        # daemon(8) passes the signal on and exits once autossh and ssh have;
+        # wait for that, so that a following start does not race the old
+        # connection for its forwarded ports
+        _wait=0
+        while kill -0 "${_pid}" 2> /dev/null; do
+            if [ ${_wait} -ge 10 ]; then
+                echo "autossh ${_t}: pid ${_pid} still running after 10s" >&2
+                break
+            fi
+            sleep 1
+            _wait=$((_wait + 1))
+        done
     else
         echo "autossh ${_t}: not running"
     fi
