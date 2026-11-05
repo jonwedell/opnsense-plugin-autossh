@@ -13,13 +13,17 @@ option on a live firewall:
   * a form field id with no matching model field
   * a generator/model mismatch in the option-key mapping tables
   * a generator reading a tunnel field the model does not define
+  * an installed configuration that reads back as changed when it is not,
+    which would restart tunnels needlessly on every Apply
 
 Usage:  python3 tools/validate.py
 """
 
+import importlib.util
 import os
 import re
 import sys
+import tempfile
 from xml.etree import ElementTree
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -115,6 +119,42 @@ def check_generator(groups, fields, problems):
         problems.append(f"generator reads tunnel field '{name}' which the model does not define")
 
 
+def load_generator():
+    # importing would otherwise drop a __pycache__ into src/, which
+    # tools/install.sh would then stage onto the firewall
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("autossh_generator", GENERATOR)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_change_detection(problems):
+    """Render a configuration the way generate() does, read it back, and
+    require that no unchanged tunnel is reported as changed."""
+    generator = load_generator()
+    tunnel = {"hostname": "remote.example", "user": "tunnel", "local_forward": "8080 127.0.0.1:80"}
+    uuids = ("00000000-0000-0000-0000-00000000000a", "00000000-0000-0000-0000-00000000000b",
+             "00000000-0000-0000-0000-00000000000c")
+    blocks = {uuid: generator.render_tunnel(uuid, tunnel, {}, {}) for uuid in uuids}
+
+    with tempfile.TemporaryDirectory() as workdir:
+        filename = os.path.join(workdir, "autossh.conf")
+        with open(filename, "w", encoding="utf-8") as handle:
+            handle.write(generator.CONFIG_HEADER + "".join("\n" + blocks[uuid] for uuid in sorted(blocks)))
+        installed = generator.read_existing_blocks(filename)
+
+    for uuid, block in blocks.items():
+        if uuid not in installed:
+            problems.append(f"change detection: block {uuid} not found when read back")
+        elif generator.block_changed(installed[uuid], block):
+            problems.append(f"change detection: unchanged block {uuid} reads back as changed")
+
+    altered = generator.render_tunnel(uuids[0], dict(tunnel, port="2222"), {}, {})
+    if uuids[0] in installed and not generator.block_changed(installed[uuids[0]], altered):
+        problems.append("change detection: a changed block reads back as unchanged")
+
+
 def check_makefile(problems):
     """Guard the Makefile knobs that are easy to get backwards.
 
@@ -155,6 +195,7 @@ def main():
     check_option_defaults(groups, problems)
     check_forms(fields, problems)
     check_generator(groups, fields, problems)
+    check_change_detection(problems)
     check_makefile(problems)
 
     print(f"model: {len(fields['tunnel'])} tunnel fields, {len(fields['key'])} key fields")

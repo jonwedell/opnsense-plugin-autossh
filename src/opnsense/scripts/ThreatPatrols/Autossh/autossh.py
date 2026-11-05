@@ -329,6 +329,23 @@ def read_existing_blocks(filename=None):
     return blocks
 
 
+def block_changed(installed_body, block):
+    """Compare an installed block body with a freshly rendered block.
+
+    `installed_body` is what read_existing_blocks() returns: the lines after
+    the Host line. `block` is render_tunnel() output, Host line included.
+
+    Blocks are separated by a blank line, so every block read back from the
+    installed file except the last carries a trailing newline that a freshly
+    rendered block does not. Compare without it, otherwise all but the last
+    tunnel count as changed on every Apply.
+    """
+    def digest(text):
+        return hashlib.sha256(text.rstrip("\n").encode("utf-8")).hexdigest()
+
+    return digest(installed_body) != digest(block.split("\n", 1)[1])
+
+
 def generate():
     """Write the ssh client configuration and identity files.
 
@@ -380,12 +397,9 @@ def generate():
             os.unlink(temp_name)
         raise
 
-    def body(text):
-        return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
     changed = [
         uuid for uuid, block in rendered.items()
-        if uuid not in previous or body(previous[uuid]) != body(block.split("\n", 1)[1])
+        if uuid not in previous or block_changed(previous[uuid], block)
     ]
     removed = [uuid for uuid in previous if uuid not in rendered]
 
