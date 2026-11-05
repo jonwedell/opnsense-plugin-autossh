@@ -61,6 +61,17 @@ fi
 echo ">>> Staging files into ${LOCALBASE}"
 tar -C "${SRC_DIR}" -cf - . | tar -C "${LOCALBASE}" -xf -
 
+# Up to 1.0.1 a static syslog-ng snippet was shipped as well. Core already
+# generates syslog-ng-autossh.conf from autossh_syslog(), so the two clashed
+# and syslog-ng refused to load its configuration. pkg removes the file on
+# upgrade; a staged install has to do it here.
+STALE_SYSLOG_CONF="${LOCALBASE}/etc/syslog-ng.conf.d/autossh.conf"
+if [ -f "${STALE_SYSLOG_CONF}" ]; then
+    echo ">>> Removing stale ${STALE_SYSLOG_CONF}"
+    rm -f "${STALE_SYSLOG_CONF}"
+    RESTART_SYSLOG=1
+fi
+
 chmod 0755 "${LOCALBASE}/etc/rc.d/opnsense-${PLUGIN_NAME}"
 chmod 0755 "${LOCALBASE}/opnsense/scripts/${PLUGIN_MODEL}/autossh.py"
 chmod 0644 "${LOCALBASE}/etc/inc/plugins.inc.d/${PLUGIN_NAME}.inc"
@@ -99,6 +110,11 @@ echo ">>> Reloading plugin configuration (menu, ACL, services)"
 
 echo ">>> Reloading templates"
 "${LOCALBASE}/sbin/configctl" template reload "${PLUGIN_MODEL}"
+
+if [ -n "${RESTART_SYSLOG}" ]; then
+    echo ">>> Restarting syslog-ng"
+    "${LOCALBASE}/sbin/configctl" syslog restart
+fi
 
 echo ">>> Restarting the web interface"
 "${LOCALBASE}/sbin/configctl" webgui restart

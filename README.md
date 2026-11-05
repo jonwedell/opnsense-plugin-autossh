@@ -159,7 +159,6 @@ returning. Child output still reaches syslog through `-S`.
 Makefile                                      plugin metadata for Mk/plugins.mk
 src/etc/inc/plugins.inc.d/autossh.inc         service + syslog + HA registration
 src/etc/rc.d/opnsense-autossh                 per-tunnel rc script
-src/etc/syslog-ng.conf.d/autossh.conf         log target for /var/log/autossh
 src/opnsense/mvc/app/models/…/Autossh.{xml,php}   data model and validation
 src/opnsense/mvc/app/controllers/…/Api/        Tunnels, Keys, Connections, Service
 src/opnsense/mvc/app/controllers/…/forms/      dialog + grid definitions
