@@ -183,6 +183,21 @@ tools/{install,uninstall}.sh, tools/validate.py
   `GatewayPorts` on the remote sshd.
 * Each enabled tunnel registers as its own service, so it appears individually
   under **System → Diagnostics → Services**.
+* After `pkg add` of a local file, **System → Firmware → Plugins** shows
+  `os-autossh (misconfigured)`. That means pkg has it but OPNsense's own
+  inventory (`<system><firmware><plugins>` in `config.xml`) does not, because
+  the firmware GUI maintains that list by calling `register.php` separately
+  from `pkg install`. Nothing is broken; the only consequence is that a config
+  backup restored onto a fresh install would not know to reinstall it. Clear it
+  with:
+
+  ```sh
+  /usr/local/opnsense/scripts/firmware/register.php install os-autossh
+  ```
+
+  Do **not** do this for a `tools/install.sh` staging install: pkg has no
+  record of those files, so registering the name would flip the entry to
+  `(missing)` in red instead.
 
 ## Licence
 
