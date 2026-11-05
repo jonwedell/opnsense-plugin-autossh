@@ -42,7 +42,7 @@ grep -c ThreatPatrols /conf/config.xml
 ### From a built package
 
 ```sh
-pkg add os-autossh-1.0.0.pkg
+pkg add os-autossh-1.0.1.pkg
 ```
 
 ### Staged, without pkg

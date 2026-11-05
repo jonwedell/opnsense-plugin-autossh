@@ -115,6 +115,28 @@ def check_generator(groups, fields, problems):
         problems.append(f"generator reads tunnel field '{name}' which the model does not define")
 
 
+def check_makefile(problems):
+    """Guard the Makefile knobs that are easy to get backwards.
+
+    Mk/plugins.mk takes the devel branch on `.if "${PLUGIN_DEVEL}" != ""`, so
+    any non-empty value -- `no` included -- makes the package declare
+    ${PLUGIN_NAME} as its own conflict. firmware/register.php then scrubs the
+    plugin out of the inventory as obsolete immediately after registering it,
+    and the Plugins page reports it as "(misconfigured)" forever.
+    """
+    source = open(os.path.join(ROOT, "Makefile"), encoding="utf-8").read()
+
+    for knob in ("PLUGIN_DEVEL", "PLUGIN_SUFFIX"):
+        for line in source.splitlines():
+            if line.startswith("#"):
+                continue
+            if re.match(rf"^\s*{knob}\s*[?:]?=", line):
+                problems.append(
+                    f"Makefile sets {knob} ({line.strip()!r}); leave it unset so the "
+                    f"package does not conflict with itself"
+                )
+
+
 def main():
     model = ElementTree.parse(MODEL).getroot()
     groups = {
@@ -133,6 +155,7 @@ def main():
     check_option_defaults(groups, problems)
     check_forms(fields, problems)
     check_generator(groups, fields, problems)
+    check_makefile(problems)
 
     print(f"model: {len(fields['tunnel'])} tunnel fields, {len(fields['key'])} key fields")
 
