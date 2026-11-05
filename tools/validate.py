@@ -15,6 +15,8 @@ option on a live firewall:
   * a generator reading a tunnel field the model does not define
   * an installed configuration that reads back as changed when it is not,
     which would restart tunnels needlessly on every Apply
+  * a script under src/ that is not executable: the package keeps file modes
+    as they are in git, and configd and rc(8) run these directly
 
 Usage:  python3 tools/validate.py
 """
@@ -155,6 +157,28 @@ def check_change_detection(problems):
         problems.append("change detection: a changed block reads back as unchanged")
 
 
+def check_executables(problems):
+    """Every file under src/ that starts with a shebang must be executable.
+
+    Mk/plugins.mk stages src/ with `tar -p`, so the package installs each file
+    with exactly the mode it has in git. tools/install.sh chmods the scripts
+    itself, which is how a missing execute bit went unnoticed until the first
+    install from a package.
+    """
+    src = os.path.join(ROOT, "src")
+    for directory, _, files in os.walk(src):
+        for name in files:
+            path = os.path.join(directory, name)
+            with open(path, "rb") as handle:
+                if handle.read(2) != b"#!":
+                    continue
+            if not os.stat(path).st_mode & 0o111:
+                problems.append(
+                    f"{os.path.relpath(path, ROOT)} has a shebang but is not executable "
+                    f"(git update-index --chmod=+x)"
+                )
+
+
 def check_makefile(problems):
     """Guard the Makefile knobs that are easy to get backwards.
 
@@ -206,6 +230,7 @@ def main():
     check_forms(fields, problems)
     check_generator(groups, fields, problems)
     check_change_detection(problems)
+    check_executables(problems)
     check_makefile(problems)
 
     print(f"model: {len(fields['tunnel'])} tunnel fields, {len(fields['key'])} key fields")
